@@ -1,0 +1,961 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🌌 Судоку Космос</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            background: #0a0e1a;
+            overflow: hidden;
+        }
+        #stars {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 0;
+        }
+        .star {
+            position: absolute;
+            background: white;
+            border-radius: 50%;
+            animation: twinkle var(--duration) ease-in-out infinite alternate;
+        }
+        @keyframes twinkle {
+            0% { opacity: 0.2; transform: scale(0.8); }
+            100% { opacity: 1; transform: scale(1.2); }
+        }
+        .planet {
+            position: fixed;
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 0;
+            opacity: 0.4;
+            filter: blur(3px);
+            animation: floatPlanet 25s ease-in-out infinite alternate;
+        }
+        @keyframes floatPlanet {
+            0% { transform: translate(0, 0); }
+            100% { transform: translate(40px, -30px); }
+        }
+        .container {
+            position: relative;
+            z-index: 1;
+            background: rgba(10, 14, 30, 0.8);
+            backdrop-filter: blur(20px);
+            border-radius: 30px;
+            padding: 30px;
+            box-shadow: 0 25px 80px rgba(0, 0, 0, 0.9), 0 0 60px rgba(100, 50, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            max-width: 960px;
+            width: 100%;
+            max-height: 98vh;
+            overflow-y: auto;
+        }
+        .container::-webkit-scrollbar {
+            width: 6px;
+        }
+        .container::-webkit-scrollbar-track {
+            background: rgba(255,255,255,0.02);
+            border-radius: 10px;
+        }
+        .container::-webkit-scrollbar-thumb {
+            background: rgba(100, 50, 255, 0.3);
+            border-radius: 10px;
+        }
+        h1 {
+            text-align: center;
+            color: #fff;
+            font-weight: 300;
+            letter-spacing: 4px;
+            margin-bottom: 20px;
+            font-size: 28px;
+            text-shadow: 0 0 40px rgba(100, 50, 255, 0.3);
+        }
+        h1 span {
+            background: linear-gradient(135deg, #f39c12, #e74c8b, #9b59b6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            font-weight: 700;
+        }
+        .controls {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 6px;
+            margin-bottom: 10px;
+        }
+        .level-btn, .diff-btn, .mode-btn {
+            padding: 6px 16px;
+            border: none;
+            border-radius: 50px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            background: rgba(255, 255, 255, 0.05);
+            color: #8e8ea0;
+            border: 1px solid rgba(255, 255, 255, 0.06);
+        }
+        .level-btn:hover, .diff-btn:hover, .mode-btn:hover {
+            transform: translateY(-2px);
+            background: rgba(255, 255, 255, 0.1);
+        }
+        .level-btn.active, .diff-btn.active {
+            background: linear-gradient(135deg, #f39c12, #e67e22);
+            color: #1e1e2f;
+            box-shadow: 0 0 30px rgba(243, 156, 18, 0.3);
+        }
+        .mode-btn.active {
+            background: linear-gradient(135deg, #3498db, #2980b9);
+            color: #fff;
+            box-shadow: 0 0 30px rgba(52, 152, 219, 0.3);
+        }
+        #pencilMode.active {
+            background: linear-gradient(135deg, #e67e22, #d35400);
+            box-shadow: 0 0 30px rgba(230, 126, 34, 0.3);
+        }
+        .grid-wrapper {
+            display: flex;
+            justify-content: center;
+            margin: 10px 0;
+            overflow: auto;
+            max-height: 65vh;
+            padding: 5px;
+        }
+        .grid-wrapper::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        .grid-wrapper::-webkit-scrollbar-track {
+            background: rgba(255,255,255,0.02);
+            border-radius: 10px;
+        }
+        .grid-wrapper::-webkit-scrollbar-thumb {
+            background: rgba(100, 50, 255, 0.3);
+            border-radius: 10px;
+        }
+        table {
+            border-collapse: collapse;
+            background: rgba(20, 25, 50, 0.8);
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6);
+        }
+        td {
+            width: 38px;
+            height: 38px;
+            text-align: center;
+            background-color: rgba(22, 30, 60, 0.6);
+            border: 1px solid rgba(74, 111, 165, 0.25);
+            transition: 0.15s;
+            position: relative;
+        }
+        td:hover {
+            background-color: rgba(100, 50, 255, 0.1);
+        }
+        .sudoku-6 td:nth-child(3n) { border-right: 3px solid rgba(74, 111, 165, 0.7); }
+        .sudoku-6 tr:nth-child(2n) td { border-bottom: 3px solid rgba(74, 111, 165, 0.7); }
+        .sudoku-9 td:nth-child(3n) { border-right: 3px solid rgba(74, 111, 165, 0.7); }
+        .sudoku-9 tr:nth-child(3n) td { border-bottom: 3px solid rgba(74, 111, 165, 0.7); }
+        .sudoku-16 td:nth-child(4n) { border-right: 3px solid rgba(74, 111, 165, 0.7); }
+        .sudoku-16 tr:nth-child(4n) td { border-bottom: 3px solid rgba(74, 111, 165, 0.7); }
+        .sudoku-16 td {
+            width: 32px;
+            height: 32px;
+        }
+        input {
+            width: 100%;
+            height: 100%;
+            border: none;
+            outline: none;
+            background: transparent;
+            text-align: center;
+            font-size: 18px;
+            font-weight: 700;
+            color: #e8e8f0;
+            font-family: 'Segoe UI', monospace;
+            position: relative;
+            z-index: 2;
+            text-shadow: 0 0 20px rgba(100, 150, 255, 0.2);
+        }
+        .sudoku-16 input {
+            font-size: 14px;
+        }
+        input:focus {
+            background: rgba(100, 50, 255, 0.12);
+        }
+        input:disabled {
+            background: rgba(20, 30, 60, 0.5);
+            color: #9aa8c8;
+            text-shadow: none;
+        }
+        input.error {
+            background: rgba(231, 76, 60, 0.2);
+            color: #e74c3c;
+            animation: shake 0.3s;
+            text-shadow: 0 0 30px rgba(231, 76, 60, 0.3);
+        }
+        input.pencil-mode {
+            color: #e67e22 !important;
+            font-size: 14px !important;
+            font-weight: 500 !important;
+            opacity: 0.6 !important;
+            text-shadow: 0 0 15px rgba(230, 126, 34, 0.15) !important;
+        }
+        .sudoku-16 input.pencil-mode {
+            font-size: 11px !important;
+        }
+        @keyframes shake {
+            0%,100% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            75% { transform: translateX(5px); }
+        }
+
+        /* ===== КАРАНДАШ ===== */
+        .pencil-container {
+            display: grid;
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 1;
+            padding: 1px;
+            pointer-events: none;
+        }
+        .sudoku-6 .pencil-container {
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(2, 1fr);
+        }
+        .sudoku-9 .pencil-container {
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(3, 1fr);
+        }
+        .sudoku-16 .pencil-container {
+            grid-template-columns: repeat(4, 1fr);
+            grid-template-rows: repeat(4, 1fr);
+        }
+        .pencil-container .pencil-item {
+            font-size: 9px;
+            font-weight: 500;
+            color: #4a4a6a;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            user-select: none;
+            opacity: 0.4;
+            transition: all 0.2s;
+            text-shadow: none;
+        }
+        .sudoku-6 .pencil-container .pencil-item {
+            font-size: 10px;
+        }
+        .sudoku-9 .pencil-container .pencil-item {
+            font-size: 8px;
+        }
+        .sudoku-16 .pencil-container .pencil-item {
+            font-size: 7px;
+        }
+        .pencil-container .pencil-item.active {
+            color: #e67e22;
+            opacity: 0.85;
+            font-weight: 600;
+            text-shadow: 0 0 15px rgba(230, 126, 34, 0.2);
+        }
+        /* Если есть основное число — скрываем карандаш */
+        td.has-value .pencil-container .pencil-item {
+            opacity: 0 !important;
+        }
+        /* Ручка активна — карандаш тусклый */
+        body.pen-mode .pencil-container .pencil-item.active {
+            opacity: 0.5;
+            color: #7a7a9a;
+            text-shadow: none;
+        }
+        /* Карандаш активен — карандаш яркий */
+        body.pencil-mode .pencil-container .pencil-item.active {
+            opacity: 1;
+            color: #e67e22;
+            text-shadow: 0 0 20px rgba(230, 126, 34, 0.3);
+        }
+
+        .game-stats {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            color: #8a8aaa;
+            font-size: 14px;
+            margin: 8px 0;
+            flex-wrap: wrap;
+        }
+        .game-stats span {
+            padding: 4px 14px;
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 50px;
+            border: 1px solid rgba(255, 255, 255, 0.04);
+        }
+        .action-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 6px;
+            margin-top: 12px;
+        }
+        .action-btn {
+            padding: 8px 18px;
+            border: none;
+            border-radius: 50px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            background: rgba(255, 255, 255, 0.05);
+            color: #c0c0d0;
+            border: 1px solid rgba(255, 255, 255, 0.06);
+        }
+        .action-btn:hover {
+            transform: scale(1.05);
+            filter: brightness(1.3);
+        }
+        #checkBtn { background: linear-gradient(135deg, #27ae60, #2ecc71); color: #fff; }
+        #solveBtn { background: linear-gradient(135deg, #2980b9, #3498db); color: #fff; }
+        #saveBtn { background: linear-gradient(135deg, #8e44ad, #9b59b6); color: #fff; }
+        #loadBtn { background: linear-gradient(135deg, #e67e22, #f39c12); color: #fff; }
+        #newGameBtn { background: linear-gradient(135deg, #c0392b, #e74c3c); color: #fff; }
+        #clearBtn { background: rgba(127, 140, 141, 0.4); color: #b0b0c0; }
+        #message {
+            text-align: center;
+            margin-top: 10px;
+            font-size: 15px;
+            font-weight: 500;
+            min-height: 25px;
+            padding: 8px;
+            border-radius: 12px;
+            background: rgba(255, 255, 255, 0.02);
+            color: #f1c40f;
+        }
+        @media (max-width: 700px) {
+            td { width: 32px; height: 32px; }
+            .sudoku-16 td { width: 26px; height: 26px; }
+            input { font-size: 15px; }
+            .sudoku-16 input { font-size: 11px; }
+            .container { padding: 15px; }
+            h1 { font-size: 22px; }
+        }
+        @media (max-width: 500px) {
+            td { width: 26px; height: 26px; }
+            .sudoku-16 td { width: 20px; height: 20px; }
+            input { font-size: 12px; }
+            .sudoku-16 input { font-size: 9px; }
+            .pencil-container .pencil-item { font-size: 6px; }
+            .action-btn { padding: 6px 12px; font-size: 11px; }
+            .level-btn, .diff-btn, .mode-btn { padding: 4px 10px; font-size: 10px; }
+        }
+    </style>
+</head>
+<body>
+<div id="stars"></div>
+<div class="planet" style="width:100px;height:100px;background:radial-gradient(circle at 30% 30%, #f39c12, #8e44ad);top:3%;left:2%;"></div>
+<div class="planet" style="width:70px;height:70px;background:radial-gradient(circle at 30% 30%, #3498db, #2c3e50);bottom:5%;right:2%;animation-delay:5s;"></div>
+<div class="planet" style="width:40px;height:40px;background:radial-gradient(circle at 30% 30%, #e74c3c, #7f8c8d);top:45%;right:3%;animation-delay:10s;"></div>
+<div class="container">
+    <h1>🌌 <span>Судоку</span> Космос</h1>
+    <div class="controls">
+        <button class="level-btn active" data-size="6">6x6</button>
+        <button class="level-btn" data-size="9">9x9</button>
+        <button class="level-btn" data-size="16">16x16 🔥</button>
+    </div>
+    <div class="controls">
+        <button class="diff-btn active" data-diff="easy">🟢 Лёгкий</button>
+        <button class="diff-btn" data-diff="medium">🟡 Средний</button>
+        <button class="diff-btn" data-diff="hard">🔴 Сложный</button>
+        <button class="diff-btn" data-diff="expert">💀 Эксперт</button>
+    </div>
+    <div class="controls">
+        <button class="mode-btn active" id="penMode">🖊️ Ручка</button>
+        <button class="mode-btn" id="pencilMode">✏️ Карандаш</button>
+    </div>
+    <div class="grid-wrapper" id="gridWrapper">
+        <table id="sudokuTable"></table>
+    </div>
+    <div class="game-stats">
+        <span id="mistakes">❌ Ошибки: 0</span>
+        <span id="hints">💡 Подсказки: 0</span>
+        <span id="timer">⏱️ 00:00</span>
+    </div>
+    <div class="action-buttons">
+        <button class="action-btn" id="checkBtn">✅ Проверить</button>
+        <button class="action-btn" id="solveBtn">💡 Подсказка</button>
+        <button class="action-btn" id="saveBtn">💾 Сохранить</button>
+        <button class="action-btn" id="loadBtn">📂 Загрузить</button>
+        <button class="action-btn" id="clearBtn">🧹 Очистить</button>
+        <button class="action-btn" id="newGameBtn">🔄 Новая игра</button>
+    </div>
+    <div id="message">🌠 Добро пожаловать в космическое судоку!</div>
+</div>
+<script>
+    // ===== ЗВЁЗДЫ =====
+    (function() {
+        const container = document.getElementById('stars');
+        for (let i = 0; i < 300; i++) {
+            const star = document.createElement('div');
+            star.className = 'star';
+            const size = Math.random() * 3 + 1;
+            star.style.width = size + 'px';
+            star.style.height = size + 'px';
+            star.style.left = Math.random() * 100 + '%';
+            star.style.top = Math.random() * 100 + '%';
+            star.style.setProperty('--duration', (Math.random() * 3 + 2) + 's');
+            star.style.animationDelay = (Math.random() * 5) + 's';
+            star.style.opacity = Math.random() * 0.8 + 0.2;
+            container.appendChild(star);
+        }
+    })();
+
+    // ===== ИГРА =====
+    let currentGame = null;
+    let isPencilMode = false;
+    let timerInterval = null;
+    let seconds = 0;
+    let mistakes = 0;
+    let hintsUsed = 0;
+    let pencilMarks = {};
+
+    function getSymbols(size) {
+        if (size === 6) return ['1','2','3','4','5','6'];
+        if (size === 9) return ['1','2','3','4','5','6','7','8','9'];
+        return ['0','1','2','3','4','5','6','7','8','9','A','B','C','D','E','F'];
+    }
+
+    function updateBodyMode() {
+        if (isPencilMode) {
+            document.body.classList.add('pencil-mode');
+            document.body.classList.remove('pen-mode');
+        } else {
+            document.body.classList.add('pen-mode');
+            document.body.classList.remove('pencil-mode');
+        }
+    }
+
+    async function initGame(size, difficulty = 'easy') {
+        try {
+            const response = await fetch('/api/generate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ size, difficulty })
+            });
+            const data = await response.json();
+            currentGame = {
+                game_id: data.game_id,
+                puzzle: data.puzzle,
+                solution: data.solution,
+                size: data.size,
+                symbols: data.symbols
+            };
+            mistakes = 0;
+            hintsUsed = 0;
+            seconds = 0;
+            pencilMarks = {};
+            renderTable(data.puzzle, data.size, data.symbols);
+            startTimer();
+            updateStats();
+            document.querySelectorAll('.level-btn').forEach(b => b.classList.remove('active'));
+            document.querySelector(`.level-btn[data-size="${size}"]`).classList.add('active');
+            document.querySelectorAll('.diff-btn').forEach(b => b.classList.remove('active'));
+            document.querySelector(`.diff-btn[data-diff="${difficulty}"]`).classList.add('active');
+            updateBodyMode();
+            showMessage(`🚀 Новая игра ${size}x${size} (${difficulty})`, 'success');
+        } catch (error) {
+            showMessage('❌ Ошибка генерации', 'error');
+        }
+    }
+
+    function renderTable(puzzle, size, symbols) {
+        const table = document.getElementById('sudokuTable');
+        table.innerHTML = '';
+        table.className = `sudoku-${size}`;
+        pencilMarks = {};
+
+        for (let r = 0; r < size; r++) {
+            const tr = document.createElement('tr');
+            for (let c = 0; c < size; c++) {
+                const td = document.createElement('td');
+                td.dataset.row = r;
+                td.dataset.col = c;
+                
+                const key = `${r}-${c}`;
+                pencilMarks[key] = new Set();
+
+                const cellWrapper = document.createElement('div');
+                cellWrapper.style.position = 'relative';
+                cellWrapper.style.width = '100%';
+                cellWrapper.style.height = '100%';
+
+                const input = document.createElement('input');
+                input.type = 'text';
+                input.maxLength = 1;
+                input.dataset.row = r;
+                input.dataset.col = c;
+                input.autocomplete = 'off';
+
+                if (puzzle[r][c] !== 0) {
+                    input.value = symbols[puzzle[r][c] - 1];
+                    input.disabled = true;
+                    input.style.fontWeight = '700';
+                    input.style.color = '#9aa8c8';
+                    td.classList.add('has-value');
+                } else {
+                    input.addEventListener('focus', function() {
+                        highlightCell(parseInt(this.dataset.row), parseInt(this.dataset.col));
+                    });
+                    input.addEventListener('input', function(e) {
+                        const row = parseInt(this.dataset.row);
+                        const col = parseInt(this.dataset.col);
+                        const key = `${row}-${col}`;
+                        if (isPencilMode) {
+                            this.value = '';
+                            return;
+                        }
+                        const val = this.value.toUpperCase();
+                        const index = symbols.indexOf(val);
+                        if (index !== -1) {
+                            pencilMarks[key].clear();
+                            updatePencilDisplay(row, col, symbols);
+                            this.classList.remove('pencil-mode');
+                            validateMove(row, col, index + 1);
+                            td.classList.add('has-value');
+                        } else {
+                            this.value = '';
+                            td.classList.remove('has-value');
+                        }
+                    });
+                    input.addEventListener('keydown', function(e) {
+                        if (!isPencilMode) return;
+                        const row = parseInt(this.dataset.row);
+                        const col = parseInt(this.dataset.col);
+                        const key = `${row}-${col}`;
+                        const keyChar = e.key.toUpperCase();
+                        const symbolsList = getSymbols(currentGame.size);
+                        const index = symbolsList.indexOf(keyChar);
+                        if (index !== -1) {
+                            e.preventDefault();
+                            const num = index + 1;
+                            if (pencilMarks[key].has(num)) {
+                                pencilMarks[key].delete(num);
+                            } else {
+                                pencilMarks[key].add(num);
+                            }
+                            updatePencilDisplay(row, col, symbolsList);
+                            this.value = '';
+                            td.classList.remove('has-value');
+                        } else if (keyChar === 'BACKSPACE' || keyChar === 'DELETE') {
+                            e.preventDefault();
+                            pencilMarks[key].clear();
+                            updatePencilDisplay(row, col, symbolsList);
+                            td.classList.remove('has-value');
+                        }
+                    });
+                    input.addEventListener('blur', function() {
+                        const row = parseInt(this.dataset.row);
+                        const col = parseInt(this.dataset.col);
+                        const key = `${row}-${col}`;
+                        if (pencilMarks[key].size > 0 && !this.value) {
+                            td.classList.remove('has-value');
+                        }
+                    });
+                }
+
+                const pencilDiv = document.createElement('div');
+                pencilDiv.className = 'pencil-container';
+                pencilDiv.id = `pencil-${r}-${c}`;
+                
+                const maxSymbols = size === 16 ? 16 : (size === 9 ? 9 : 6);
+                const symbolsList = getSymbols(size);
+                for (let i = 0; i < maxSymbols; i++) {
+                    const span = document.createElement('span');
+                    span.className = 'pencil-item';
+                    span.dataset.num = i + 1;
+                    span.textContent = symbolsList[i] || '';
+                    pencilDiv.appendChild(span);
+                }
+
+                cellWrapper.appendChild(input);
+                cellWrapper.appendChild(pencilDiv);
+                td.appendChild(cellWrapper);
+                tr.appendChild(td);
+            }
+            table.appendChild(tr);
+        }
+        
+        for (let r = 0; r < size; r++) {
+            for (let c = 0; c < size; c++) {
+                updatePencilDisplay(r, c, symbols);
+            }
+        }
+    }
+
+    function updatePencilDisplay(row, col, symbols) {
+        const key = `${row}-${col}`;
+        const marks = pencilMarks[key] || new Set();
+        const pencilDiv = document.getElementById(`pencil-${row}-${col}`);
+        if (!pencilDiv) return;
+        
+        const items = pencilDiv.querySelectorAll('.pencil-item');
+        const input = document.querySelector(`input[data-row="${row}"][data-col="${col}"]`);
+        const td = document.querySelector(`td[data-row="${row}"][data-col="${col}"]`);
+        
+        // Если в ячейке есть основное число — карандаш не показываем
+        if (input && input.value.trim() !== '') {
+            items.forEach(item => {
+                item.classList.remove('active');
+                item.style.opacity = '0';
+            });
+            if (td) td.classList.add('has-value');
+            return;
+        }
+        
+        if (td) td.classList.remove('has-value');
+        
+        let hasActive = false;
+        items.forEach(item => {
+            const num = parseInt(item.dataset.num);
+            if (marks.has(num)) {
+                item.classList.add('active');
+                hasActive = true;
+            } else {
+                item.classList.remove('active');
+            }
+            item.style.opacity = '';
+        });
+        
+        // Если есть активные элементы карандаша — обновляем стиль
+        if (input) {
+            if (hasActive && isPencilMode) {
+                input.classList.add('pencil-mode');
+            } else {
+                input.classList.remove('pencil-mode');
+            }
+        }
+    }
+
+    function highlightCell(row, col) {
+        document.querySelectorAll('td').forEach(td => {
+            td.style.backgroundColor = '';
+        });
+        const td = document.querySelector(`td[data-row="${row}"][data-col="${col}"]`);
+        if (td) {
+            td.style.backgroundColor = 'rgba(100, 50, 255, 0.15)';
+        }
+    }
+
+    async function validateMove(row, col, value) {
+        try {
+            const response = await fetch('/api/validate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ row, col, value, solution: currentGame.solution })
+            });
+            const data = await response.json();
+            const input = document.querySelector(`input[data-row="${row}"][data-col="${col}"]`);
+            const td = document.querySelector(`td[data-row="${row}"][data-col="${col}"]`);
+            if (data.valid) {
+                input.classList.remove('error');
+                if (td) td.classList.add('has-value');
+                showMessage('✅ Правильно!', 'success');
+            } else {
+                input.classList.add('error');
+                mistakes++;
+                showMessage(`❌ Неправильно! Правильно: ${currentGame.symbols[data.correct_value - 1]}`, 'error');
+                setTimeout(() => {
+                    input.classList.remove('error');
+                    input.value = '';
+                    if (td) td.classList.remove('has-value');
+                }, 1200);
+            }
+            updateStats();
+        } catch (error) {
+            showMessage('❌ Ошибка проверки', 'error');
+        }
+    }
+
+    async function getHint() {
+        if (!currentGame) {
+            showMessage('Сначала начните игру!', 'error');
+            return;
+        }
+        const inputs = document.querySelectorAll('#sudokuTable input:not([disabled])');
+        let target = null;
+        for (const inp of inputs) {
+            if (!inp.value.trim()) {
+                target = inp;
+                break;
+            }
+        }
+        if (!target) {
+            showMessage('Нет пустых клеток!', 'error');
+            return;
+        }
+        try {
+            const response = await fetch('/api/hint', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    game_id: currentGame.game_id,
+                    row: parseInt(target.dataset.row),
+                    col: parseInt(target.dataset.col)
+                })
+            });
+            const data = await response.json();
+            const input = document.querySelector(`input[data-row="${data.row}"][data-col="${data.col}"]`);
+            const td = document.querySelector(`td[data-row="${data.row}"][data-col="${data.col}"]`);
+            const key = `${data.row}-${data.col}`;
+            pencilMarks[key].clear();
+            updatePencilDisplay(data.row, data.col, currentGame.symbols);
+            input.value = data.symbol;
+            input.style.color = '#2ecc71';
+            input.classList.remove('pencil-mode');
+            if (td) td.classList.add('has-value');
+            hintsUsed++;
+            updateStats();
+            showMessage(`💡 Подсказка: ${data.symbol}`, 'success');
+        } catch (error) {
+            showMessage('❌ Ошибка подсказки', 'error');
+        }
+    }
+
+    async function saveGame() {
+        if (!currentGame) {
+            showMessage('Нет активной игры', 'error');
+            return;
+        }
+        try {
+            const currentState = getCurrentState();
+            const response = await fetch('/api/save', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    game_id: currentGame.game_id,
+                    current_state: currentState,
+                    mistakes: mistakes,
+                    hints_used: hintsUsed,
+                    time_spent: seconds
+                })
+            });
+            const data = await response.json();
+            showMessage(`💾 Игра сохранена! ID: ${data.game_id}`, 'success');
+        } catch (error) {
+            showMessage('❌ Ошибка сохранения', 'error');
+        }
+    }
+
+    async function loadGame() {
+        try {
+            const response = await fetch('/api/stats');
+            const stats = await response.json();
+            if (stats.recent_games.length === 0) {
+                showMessage('Нет сохранённых игр', 'error');
+                return;
+            }
+            const lastGame = stats.recent_games[0];
+            const loadResponse = await fetch(`/api/load/${lastGame.id}`);
+            const gameData = await loadResponse.json();
+            const symbols = gameData.symbols || getSymbols(gameData.size);
+            currentGame = {
+                game_id: gameData.id,
+                puzzle: gameData.puzzle || gameData.current_state,
+                solution: gameData.solution,
+                size: gameData.size,
+                symbols: symbols
+            };
+            mistakes = gameData.mistakes || 0;
+            hintsUsed = gameData.hints_used || 0;
+            seconds = gameData.time_spent || 0;
+            pencilMarks = {};
+            renderTable(currentGame.puzzle, currentGame.size, symbols);
+            startTimer();
+            updateStats();
+            showMessage('📂 Игра загружена!', 'success');
+        } catch (error) {
+            showMessage('❌ Ошибка загрузки', 'error');
+        }
+    }
+
+    function getCurrentState() {
+        if (!currentGame) return [];
+        const size = currentGame.size;
+        const state = Array.from({ length: size }, () => Array(size).fill(0));
+        const symbols = currentGame.symbols;
+        document.querySelectorAll('#sudokuTable input').forEach(input => {
+            const row = parseInt(input.dataset.row);
+            const col = parseInt(input.dataset.col);
+            const val = input.value.trim().toUpperCase();
+            const index = symbols.indexOf(val);
+            if (index !== -1) {
+                state[row][col] = index + 1;
+            }
+        });
+        return state;
+    }
+
+    function startTimer() {
+        if (timerInterval) clearInterval(timerInterval);
+        timerInterval = setInterval(() => {
+            seconds++;
+            updateTimerDisplay();
+        }, 1000);
+    }
+
+    function updateTimerDisplay() {
+        const mins = String(Math.floor(seconds / 60)).padStart(2, '0');
+        const secs = String(seconds % 60).padStart(2, '0');
+        document.getElementById('timer').textContent = `⏱️ ${mins}:${secs}`;
+    }
+
+    function updateStats() {
+        document.getElementById('mistakes').textContent = `❌ Ошибки: ${mistakes}`;
+        document.getElementById('hints').textContent = `💡 Подсказки: ${hintsUsed}`;
+        updateTimerDisplay();
+    }
+
+    function showMessage(text, type = 'info') {
+        const msg = document.getElementById('message');
+        msg.textContent = text;
+        const colors = { error: '#e74c3c', success: '#2ecc71', info: '#3498db' };
+        msg.style.color = colors[type] || '#f1c40f';
+        clearTimeout(msg._timeout);
+        msg._timeout = setTimeout(() => { if (msg.textContent === text) msg.textContent = ''; }, 3500);
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        // Кнопки уровней
+        document.querySelectorAll('.level-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const size = parseInt(this.dataset.size);
+                const diff = document.querySelector('.diff-btn.active').dataset.diff;
+                initGame(size, diff);
+            });
+        });
+        // Кнопки сложности
+        document.querySelectorAll('.diff-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const diff = this.dataset.diff;
+                const size = parseInt(document.querySelector('.level-btn.active').dataset.size);
+                initGame(size, diff);
+            });
+        });
+        // Режимы
+        document.getElementById('pencilMode').addEventListener('click', function() {
+            isPencilMode = true;
+            document.getElementById('penMode').classList.remove('active');
+            this.classList.add('active');
+            updateBodyMode();
+            // Обновляем все карандаши
+            if (currentGame) {
+                for (let r = 0; r < currentGame.size; r++) {
+                    for (let c = 0; c < currentGame.size; c++) {
+                        updatePencilDisplay(r, c, currentGame.symbols);
+                    }
+                }
+            }
+            showMessage('✏️ Режим карандаша (черновики)', 'info');
+        });
+        document.getElementById('penMode').addEventListener('click', function() {
+            isPencilMode = false;
+            document.getElementById('pencilMode').classList.remove('active');
+            this.classList.add('active');
+            updateBodyMode();
+            if (currentGame) {
+                for (let r = 0; r < currentGame.size; r++) {
+                    for (let c = 0; c < currentGame.size; c++) {
+                        updatePencilDisplay(r, c, currentGame.symbols);
+                    }
+                }
+            }
+            showMessage('🖊️ Режим ручки (ответы)', 'info');
+        });
+        // Новая игра
+        document.getElementById('newGameBtn').addEventListener('click', function() {
+            const size = parseInt(document.querySelector('.level-btn.active').dataset.size);
+            const diff = document.querySelector('.diff-btn.active').dataset.diff;
+            if (confirm('🌌 Начать новую космическую игру?')) {
+                initGame(size, diff);
+            }
+        });
+        // Проверка
+        document.getElementById('checkBtn').addEventListener('click', function() {
+            const inputs = document.querySelectorAll('#sudokuTable input:not([disabled])');
+            let hasEmpty = false;
+            let hasError = false;
+            inputs.forEach(inp => {
+                if (!inp.value.trim()) {
+                    hasEmpty = true;
+                    inp.style.border = '1px solid #f39c12';
+                } else {
+                    const row = parseInt(inp.dataset.row);
+                    const col = parseInt(inp.dataset.col);
+                    const val = inp.value.trim().toUpperCase();
+                    const index = currentGame.symbols.indexOf(val);
+                    if (index === -1 || currentGame.solution[row][col] !== index + 1) {
+                        hasError = true;
+                        inp.classList.add('error');
+                    } else {
+                        inp.classList.remove('error');
+                        inp.style.border = '';
+                    }
+                }
+            });
+            if (hasEmpty) {
+                showMessage('⚠️ Есть пустые клетки!', 'error');
+            } else if (hasError) {
+                showMessage('❌ Есть ошибки!', 'error');
+            } else {
+                showMessage('✅ ВСЁ ПРАВИЛЬНО! ПОЗДРАВЛЯЮ! 🎉', 'success');
+                if (timerInterval) clearInterval(timerInterval);
+            }
+        });
+        document.getElementById('solveBtn').addEventListener('click', getHint);
+        document.getElementById('saveBtn').addEventListener('click', saveGame);
+        document.getElementById('loadBtn').addEventListener('click', loadGame);
+        document.getElementById('clearBtn').addEventListener('click', function() {
+            document.querySelectorAll('#sudokuTable input:not([disabled])').forEach(input => {
+                input.value = '';
+                input.classList.remove('error');
+                input.classList.remove('pencil-mode');
+                input.style.border = '';
+                input.style.color = '';
+                const row = parseInt(input.dataset.row);
+                const col = parseInt(input.dataset.col);
+                const td = document.querySelector(`td[data-row="${row}"][data-col="${col}"]`);
+                if (td) td.classList.remove('has-value');
+                const key = `${row}-${col}`;
+                pencilMarks[key] = new Set();
+                if (currentGame) {
+                    updatePencilDisplay(row, col, currentGame.symbols);
+                }
+            });
+            mistakes = 0;
+            hintsUsed = 0;
+            updateStats();
+            showMessage('🧹 Поле очищено', 'info');
+        });
+        updateBodyMode();
+        initGame(6, 'easy');
+    });
+</script>
+</body>
+</html>
